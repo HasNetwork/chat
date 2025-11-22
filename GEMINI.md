@@ -9,7 +9,8 @@ User verification of the mobile UI and execution of the migration script. The ap
 
 ## ⚠️ Known Issues / Constraints
 
-- **Migration:** The `migrate_db.py` script relies on `old_chat.db` being present in the root directory.
+## ⚠️ Known Issues / Constraints
+
 - **Mobile:** Sidebar is hidden by default on mobile and toggled via a hamburger menu.
 - **Timezones:** Client-side timestamps are forced to IST ("Asia/Kolkata").
 
