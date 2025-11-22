@@ -65,6 +65,17 @@ This is a real-time chat application built with Flask, Flask-SocketIO, and Flask
     ```
     The application will be running at `http://127.0.0.1:5000`.
 
+## Database Migration
+
+If you are upgrading from an older version of the application and have an existing `old_chat.db` file:
+
+1.  Place `old_chat.db` in the root directory of the project.
+2.  Run the migration script:
+    ```bash
+    python migrate_db.py
+    ```
+3.  This will import users and messages into the new `instance/chat.db`.
+
 ## Admin Panel
 
 The first user to register becomes an admin. The admin panel can be accessed at the `/admin` route.

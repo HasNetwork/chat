@@ -4,68 +4,48 @@
 		<meta charset="UTF-8" />
 		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
 		<title>Login - HaS Chat</title>
-    <link rel="icon" href="{{ url_for('static', filename='favicon.svg') }}">
-		<script src="https://cdn.tailwindcss.com"></script>
+		<link rel="icon" href="{{ url_for('static', filename='favicon.svg') }}" />
+		<link
+			rel="stylesheet"
+			href="{{ url_for('static', filename='style.css') }}" />
+		<link rel="preconnect" href="https://fonts.googleapis.com" />
+		<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+		<link
+			href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap"
+			rel="stylesheet" />
 	</head>
-	<body class="bg-gray-900 flex items-center justify-center h-screen">
-		<div
-			class="bg-gray-800 p-8 rounded-lg shadow-md w-full max-w-sm text-gray-100">
-			<h2 class="text-2xl font-bold mb-6 text-center">Login</h2>
-
-			{% with messages = get_flashed_messages() %} {% if messages %}
+	<body>
+		<div class="glass-panel form-container">
+			<h2>Login</h2>
+			{% with messages = get_flashed_messages(with_categories=true) %} {% if
+			messages %} {% for category, message in messages %}
 			<div
-				class="bg-red-800 border border-red-600 text-red-100 px-4 py-3 rounded relative mb-4"
-				role="alert">
-				<strong class="font-bold">Error!</strong>
-				<span class="block sm:inline">{{ messages[0] }}</span>
+				class="alert alert-{{ category if category != 'message' else 'info' }}">
+				{{ message }}
 			</div>
-			{% endif %} {% endwith %}
-
-			<form method="POST" action="{{ url_for('login') }}">
-				<div class="mb-4">
-					<label
-						for="username"
-						class="block text-gray-300 text-sm font-bold mb-2"
-						>Username</label
-					>
-					<input
-						type="text"
-						id="username"
-						name="username"
-						class="shadow appearance-none border rounded w-full py-2 px-3 bg-gray-700 text-gray-100 leading-tight focus:outline-none focus:shadow-outline"
-						required />
+			{% endfor %} {% endif %} {% endwith %}
+			<form method="POST" action="{{ url_for('main.login') }}">
+				<div class="form-group">
+					<label for="username">Username</label>
+					<input type="text" id="username" name="username" required />
 				</div>
-				<div class="mb-6">
-					<label
-						for="password"
-						class="block text-gray-300 text-sm font-bold mb-2"
-						>Password</label
-					>
-					<input
-						type="password"
-						id="password"
-						name="password"
-						class="shadow appearance-none border rounded w-full py-2 px-3 bg-gray-700 text-gray-100 mb-3 leading-tight focus:outline-none focus:shadow-outline"
-						required />
+				<div class="form-group">
+					<label for="password">Password</label>
+					<input type="password" id="password" name="password" required />
 				</div>
-				<div class="mb-6">
-					<label class="flex items-center">
-						<input type="checkbox" name="remember" class="form-checkbox h-5 w-5 text-blue-600">
-						<span class="ml-2 text-gray-300">Remember me</span>
+				<div class="form-group">
+					<label class="inline-flex items-center">
+						<input type="checkbox" name="remember" class="form-checkbox" />
+						<span class="ml-2">Remember me</span>
 					</label>
 				</div>
-				<div class="flex items-center justify-between">
-					<button
-						type="submit"
-						class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline">
-						Sign In
-					</button>
-					<a
-						href="{{ url_for('register') }}"
-						class="inline-block align-baseline font-bold text-sm text-blue-400 hover:text-blue-600">
-						Create an account
-					</a>
-				</div>
+				<button type="submit" class="btn">Sign In</button>
+				<p class="mt-4 text-center">
+					Don't have an account?
+					<a href="{{ url_for('main.register') }}" class="btn-link"
+						>Create one</a
+					>
+				</p>
 			</form>
 		</div>
 	</body>

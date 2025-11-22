@@ -2,3 +2,4 @@ env/**
 .hintrc
 instance
 uploads
+__pycache__

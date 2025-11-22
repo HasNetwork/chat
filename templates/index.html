@@ -4,323 +4,73 @@
 		<meta charset="UTF-8" />
 		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
 		<title>HaS Chat</title>
-    <link rel="icon" href="{{ url_for('static', filename='favicon.svg') }}">
-		<script src="https://cdn.tailwindcss.com"></script>
+		<link rel="icon" href="{{ url_for('static', filename='favicon.svg') }}" />
+		<link
+			rel="stylesheet"
+			href="{{ url_for('static', filename='style.css') }}" />
+		<link rel="preconnect" href="https://fonts.googleapis.com" />
+		<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+		<link
+			href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap"
+			rel="stylesheet" />
 		<script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.5/socket.io.min.js"></script>
 	</head>
-	<body class="bg-gray-900">
-		<div id="app" class="flex h-screen">
-			<!-- Sidebar for Rooms -->
-			<aside
-				id="sidebar"
-				class="w-full md:w-1/4 bg-gray-900 text-gray-100 p-4 flex flex-col fixed md:relative h-full z-20 transform -translate-x-full md:translate-x-0 transition-transform duration-300 ease-in-out">
-				<div class="flex justify-between items-center mb-4">
-					<h2 class="text-xl font-bold">Chat Rooms</h2>
-					<button id="close-sidebar-btn" class="md:hidden p-2">
-						Close
-					</button>
+	<body data-username="{{ current_user.username }}">
+		<button id="menu-btn">☰</button>
+		<div class="chat-container glass-panel">
+			<aside class="sidebar" id="sidebar">
+				<div id="room-list">
+					<h3>Rooms</h3>
+					<ul>
+						{% for room in rooms %}
+						<li onclick="joinRoom('{{ room }}')">{{ room }}</li>
+						{% endfor %}
+					</ul>
+					<form id="new-room-form">
+						<input
+							type="text"
+							id="new-room-input"
+							placeholder="New room"
+							autocomplete="off" />
+						<button type="submit" id="join-btn" class="btn">Join</button>
+					</form>
 				</div>
-				<ul id="room-list" class="mb-4 flex-1">
-					{% for room in rooms %}
-					<li
-						class="cursor-pointer p-2 hover:bg-gray-800 rounded"
-						onclick="joinRoom('{{ room }}')">
-						{{ room }}
-					</li>
-					{% endfor %}
-				</ul>
-				<form id="new-room-form" class="mb-4">
+				<div id="online-users">
+					<h3>Online</h3>
+					<ul>
+						<!-- Online users will be populated by JavaScript -->
+					</ul>
+				</div>
+				<div class="user-menu">
+					<span>{{ current_user.username }}</span>
+					{% if current_user.is_admin %}
+					<a href="{{ url_for('main.admin') }}">Admin</a>
+					{% endif %}
+					<a href="{{ url_for('main.logout') }}">Logout</a>
+				</div>
+			</aside>
+			<main class="main-chat">
+				<div id="chat-window" class="chat-window">
+					<!-- Messages will be appended here -->
+				</div>
+				<div id="global-seen-status" class="seen-status"></div>
+				<div id="typing-indicator"></div>
+				<div id="typing-indicator"></div>
+				<div id="reply-indicator"></div>
+				<div class="chat-input">
+					<input type="hidden" id="reply-to" value="" />
 					<input
 						type="text"
-						id="new-room-input"
-						class="w-full bg-gray-800 border rounded px-3 py-2 text-gray-100"
-						placeholder="New room name..." />
-					<button
-						type="submit"
-						class="w-full bg-blue-500 font-bold py-2 px-4 rounded mt-2 hover:bg-blue-700">
-						Create/Join Room
-					</button>
-				</form>
-				{% if is_admin %}
-				<a
-					href="{{ url_for('admin') }}"
-					class="text-yellow-400 hover:text-yellow-600 text-center py-2"
-					>Admin</a
-				>
-				{% endif %}
-				<a
-					href="{{ url_for('logout') }}"
-					class="text-red-400 hover:text-red-600 text-center py-2"
-					>Logout</a
-				>
-			</aside>
-
-			<!-- Chat Container -->
-			<div id="chat-container" class="flex flex-col h-full w-full md:w-3/4">
-				<header class="bg-blue-700 text-gray-100 p-4 flex items-center justify-between">
-					<button id="rooms-btn" class="md:hidden bg-blue-600 p-2 rounded">
-						Rooms
-					</button>
-					<h1 id="room-title" class="text-xl font-bold text-center flex-1">Select a Room</h1>
-					<div class="w-12"></div>
-					<!-- Placeholder for spacing -->
-				</header>
-
-				<main id="messages" class="flex-1 p-4 overflow-y-auto bg-gray-800">
-					<!-- Messages will be appended here -->
-				</main>
-
-				<footer class="p-4 bg-gray-700">
-					<form id="message-form" class="flex items-center">
-						<input
-							id="message-input"
-							type="text"
-							class="flex-1 border rounded-l-lg px-4 py-2"
-							placeholder="Type a message..."
-							disabled />
-						<button
-							type="submit"
-							class="bg-blue-500 text-white font-bold py-2 px-4 rounded-r-lg hover:bg-blue-700"
-							disabled>
-							Send
-						</button>
-					</form>
-
-					<form id="file-form" class="mt-2" enctype="multipart/form-data">
-						<input id="file-input" type="file" class="text-sm" disabled />
-						<button
-							type="submit"
-							class="bg-green-500 text-white font-bold py-1 px-3 rounded text-sm hover:bg-green-700"
-							disabled>
-							Upload File
-						</button>
-					</form>
-				</footer>
-			</div>
+						id="message-input"
+						placeholder="Type a message..."
+						autocomplete="off"
+						disabled />
+					<button id="send-button" class="btn" disabled>Send</button>
+					<input type="file" id="file-input" style="display: none" />
+					<button id="upload-button" class="btn" disabled>Upload</button>
+				</div>
+			</main>
 		</div>
-
-		<script>
-			document.addEventListener("DOMContentLoaded", () => {
-				const socket = io();
-				let currentRoom = "";
-				const username = "{{ current_user.username }}";
-
-				const roomTitle = document.getElementById("room-title");
-				const messages = document.getElementById("messages");
-				const messageForm = document.getElementById("message-form");
-				const messageInput = document.getElementById("message-input");
-				const fileForm = document.getElementById("file-form");
-				const fileInput = document.getElementById("file-input");
-				const newRoomForm = document.getElementById("new-room-form");
-				const newRoomInput = document.getElementById("new-room-input");
-				const roomList = document.getElementById("room-list");
-				const sidebar = document.getElementById("sidebar");
-				const roomsBtn = document.getElementById("rooms-btn");
-				const closeSidebarBtn = document.getElementById("close-sidebar-btn");
-
-				function toggleSidebar(show) {
-					if (show) {
-						sidebar.classList.remove("-translate-x-full");
-					} else {
-						sidebar.classList.add("-translate-x-full");
-					}
-				}
-
-				roomsBtn.addEventListener("click", () => toggleSidebar(true));
-				closeSidebarBtn.addEventListener("click", () => toggleSidebar(false));
-
-				function enableChat(enabled) {
-					messageInput.disabled = !enabled;
-					document.querySelector("#message-form button").disabled = !enabled;
-					fileInput.disabled = !enabled;
-					document.querySelector("#file-form button").disabled = !enabled;
-				}
-
-				window.joinRoom = (room) => {
-					if (currentRoom) {
-						socket.emit("leave", { room: currentRoom });
-					}
-					messages.innerHTML = "";
-					socket.emit("join", { room: room });
-					currentRoom = room;
-					roomTitle.innerText = `Room: ${room}`;
-					enableChat(true);
-					if (window.innerWidth < 768) {
-						toggleSidebar(false);
-					}
-				};
-
-				newRoomForm.addEventListener("submit", (e) => {
-					e.preventDefault();
-					const newRoomName = newRoomInput.value.trim();
-					if (newRoomName) {
-						// Avoid adding duplicate rooms to the list
-						if (
-							![...roomList.children].some((li) => li.innerText === newRoomName)
-						) {
-							const newRoomElement = document.createElement("li");
-							newRoomElement.className =
-								"cursor-pointer p-2 hover:bg-gray-700 rounded";
-							newRoomElement.innerText = newRoomName;
-							newRoomElement.onclick = () => joinRoom(newRoomName);
-							roomList.appendChild(newRoomElement);
-						}
-						joinRoom(newRoomName);
-						newRoomInput.value = "";
-					}
-				});
-
-				function scrollToBottom() {
-					messages.scrollTop = messages.scrollHeight;
-				}
-
-				messageForm.addEventListener("submit", (e) => {
-					e.preventDefault();
-					const message = messageInput.value.trim();
-					if (message && currentRoom) {
-						socket.emit("send_message", {
-							room: currentRoom,
-							message: message,
-						});
-						messageInput.value = "";
-					}
-				});
-
-				let lastMessageDate = null;
-
-				function formatDate(isoString) {
-					const date = new Date(isoString);
-					return date.toLocaleDateString(undefined, {
-						weekday: "long",
-						year: "numeric",
-						month: "long",
-						day: "numeric",
-					});
-				}
-
-				function formatTime(isoString) {
-					const date = new Date(isoString);
-					return date.toLocaleTimeString(undefined, {
-						hour: "2-digit",
-						minute: "2-digit",
-					});
-				}
-
-				function addDateSeparator(dateString) {
-					const separator = document.createElement("div");
-					separator.className = "text-center text-gray-500 my-2";
-					separator.innerHTML = `<hr class="my-2"><span class="bg-gray-900 px-2">${dateString}</span>`;
-					messages.appendChild(separator);
-				}
-
-				function appendMessage(data) {
-					const messageDate = new Date(data.timestamp).toDateString();
-					if (lastMessageDate !== messageDate) {
-						addDateSeparator(formatDate(data.timestamp));
-						lastMessageDate = messageDate;
-					}
-
-					const messageElement = document.createElement("div");
-					const time = formatTime(data.timestamp);
-
-					if (data.is_file) {
-						messageElement.classList.add(
-							"mb-2",
-							"py-4",
-							"px-4",
-							"rounded-lg",
-							"flex",
-							"flex-col",
-							"max-w-md"
-						);
-						if (data.user === username) {
-							messageElement.classList.add(
-								"bg-indigo-700",
-								"text-white",
-								"self-end",
-								"items-end",
-								"ml-auto"
-							);
-							messageElement.innerHTML = `
-								<p class="font-bold text-sm mb-1">You uploaded a file</p>
-								<a href="${data.url}" target="_blank" class="text-blue-300 hover:underline text-sm">${data.filename}</a>
-								<span class="text-xs text-indigo-200 mt-2">${time}</span>`;
-						} else {
-							messageElement.classList.add(
-								"bg-indigo-800",
-								"text-gray-100",
-								"self-start",
-								"items-start"
-							);
-							messageElement.innerHTML = `
-								<p class="font-bold text-sm mb-1">${data.user} uploaded a file</p>
-								<a href="${data.url}" target="_blank" class="text-blue-300 hover:underline text-sm">${data.filename}</a>
-								<span class="text-xs text-indigo-300 mt-2">${time}</span>`;
-						}
-					} else {
-						messageElement.classList.add(
-							"mb-2",
-							"p-2",
-							"rounded-lg",
-							"flex",
-							"flex-col"
-						);
-						if (data.user === username) {
-							messageElement.classList.add(
-								"bg-blue-500",
-								"text-white",
-								"self-end",
-								"items-end",
-								"ml-auto",
-								"max-w-md"
-							);
-							messageElement.innerHTML = `
-								<p class="text-sm break-words">${data.message}</p>
-								<span class="text-xs text-blue-200 mt-1">${time}</span>`;
-						} else {
-							messageElement.classList.add(
-								"bg-gray-300",
-								"self-start",
-								"items-start",
-								"max-w-md"
-							);
-							messageElement.innerHTML = `
-								<p class="font-bold text-sm">${data.user}</p>
-								<p class="text-sm break-words">${data.message}</p>
-								<span class="text-xs text-gray-600 mt-1">${time}</span>`;
-						}
-					}
-					messages.appendChild(messageElement);
-					scrollToBottom();
-				}
-
-				socket.on("receive_message", (data) => {
-					appendMessage(data);
-				});
-
-				socket.on("load_history", (history) => {
-					messages.innerHTML = ""; // Clear messages before loading history
-					lastMessageDate = null;
-					history.forEach(appendMessage);
-				});
-
-				fileForm.addEventListener("submit", (e) => {
-					e.preventDefault();
-					const file = fileInput.files[0];
-					if (file && currentRoom) {
-						const formData = new FormData();
-						formData.append("file", file);
-						formData.append("room", currentRoom);
-
-						fetch("/upload", {
-							method: "POST",
-							body: formData,
-						}).catch((error) => console.error("Error uploading file:", error));
-
-						fileInput.value = "";
-					}
-				});
-			});
-		</script>
+		<script src="{{ url_for('static', filename='js/chat.js') }}"></script>
 	</body>
 </html>
