@@ -2,11 +2,9 @@ from flask import request
 from flask_socketio import emit, join_room, leave_room
 from flask_login import current_user
 from datetime import datetime
-import pytz
+from sqlalchemy.orm import joinedload
 from extensions import db, socketio
 from models import User, Room, Message, Reaction, MessageSeen
-
-IST = pytz.timezone('Asia/Kolkata')
 
 def emit_user_status(room_name):
     room = Room.query.get(room_name)
@@ -20,10 +18,6 @@ def on_connect():
         current_user.online = True
         current_user.last_seen = datetime.utcnow()
         db.session.commit()
-        # We can't easily know which room they are in on connect, 
-        # but on_join will handle the status update for the specific room.
-        # If we tracked current room in DB, we could update here.
-        # For now, just set online.
 
 @socketio.on('disconnect')
 def on_disconnect():
@@ -48,8 +42,17 @@ def on_join(data):
         current_user.rooms.append(room)
         db.session.commit()
 
-    # Fetch history and send as a single batch
-    history_messages = Message.query.filter_by(room_name=room_name).order_by(Message.timestamp).all()
+    # --- PERFORMANCE FIX START ---
+    # Fetch messages + Reactions + Seen status in ONE query.
+    history_messages = Message.query.options(
+        joinedload(Message.reactions).joinedload(Reaction.user),
+        joinedload(Message.seen_by).joinedload(MessageSeen.user)
+    ).filter_by(room_name=room_name).order_by(Message.timestamp.desc()).limit(50).all()
+    # --- PERFORMANCE FIX END ---
+
+    # Reverse to show oldest first
+    history_messages = history_messages[::-1]
+
     history_batch = [{
         'id': msg.id,
         'user': msg.username,
@@ -57,10 +60,10 @@ def on_join(data):
         'is_file': msg.is_file,
         'filename': msg.filename,
         'url': msg.content if msg.is_file else None,
-        'timestamp': pytz.utc.localize(msg.timestamp).astimezone(IST).isoformat(),
+        'timestamp': msg.timestamp.isoformat() + "Z", # Send UTC
         'parent_id': msg.parent_id,
         'is_deleted': msg.is_deleted,
-        'edited_at': pytz.utc.localize(msg.edited_at).astimezone(IST).isoformat() if msg.edited_at else None,
+        'edited_at': msg.edited_at.isoformat() + "Z" if msg.edited_at else None,
         'reactions': [{'emoji': r.emoji, 'user': r.user.username} for r in msg.reactions],
         'seen_by': [seen.user.username for seen in msg.seen_by]
     } for msg in history_messages]
@@ -84,14 +87,12 @@ def handle_send_message(data):
     db.session.add(new_message)
     db.session.commit()
 
-    timestamp_ist = pytz.utc.localize(new_message.timestamp).astimezone(IST)
-
     emit('receive_message', {
         'id': new_message.id,
         'user': current_user.username,
         'message': message_content,
         'is_file': False,
-        'timestamp': timestamp_ist.isoformat(),
+        'timestamp': new_message.timestamp.isoformat() + "Z",
         'parent_id': parent_id,
         'is_deleted': False,
         'edited_at': None,
@@ -107,11 +108,11 @@ def handle_edit_message(data):
         message.content = new_content
         message.edited_at = datetime.utcnow()
         db.session.commit()
-        edited_at_ist = pytz.utc.localize(message.edited_at).astimezone(IST)
+        
         emit('message_edited', {
             'message_id': message_id,
             'new_content': new_content,
-            'edited_at': edited_at_ist.isoformat()
+            'edited_at': message.edited_at.isoformat() + "Z"
         }, to=message.room_name)
 
 @socketio.on('delete_message')
@@ -128,7 +129,6 @@ def handle_react_message(data):
     message_id = data['message_id']
     emoji = data['emoji']
     
-    # Remove existing reaction from the user for the same message
     existing_reaction = Reaction.query.filter_by(message_id=message_id, user_id=current_user.id).first()
     if existing_reaction:
         db.session.delete(existing_reaction)
@@ -137,7 +137,8 @@ def handle_react_message(data):
     db.session.add(new_reaction)
     db.session.commit()
     
-    message = Message.query.get(message_id)
+    # Reload with joined data
+    message = Message.query.options(joinedload(Message.reactions).joinedload(Reaction.user)).get(message_id)
     reactions = [{'emoji': r.emoji, 'user': r.user.username} for r in message.reactions]
 
     emit('message_reacted', {
@@ -155,16 +156,22 @@ def handle_typing(data):
 @socketio.on('message_seen')
 def handle_message_seen(data):
     message_id = data['message_id']
-    message = Message.query.get(message_id)
-    if message:
-        seen = MessageSeen.query.filter_by(user_id=current_user.id, message_id=message_id).first()
-        if not seen:
-            seen = MessageSeen(user_id=current_user.id, message_id=message_id)
-            db.session.add(seen)
+    # Check efficiently without full load
+    seen_exists = db.session.query(MessageSeen.id).filter_by(user_id=current_user.id, message_id=message_id).scalar()
+    
+    if not seen_exists:
+        seen = MessageSeen(user_id=current_user.id, message_id=message_id)
+        db.session.add(seen)
+        try:
             db.session.commit()
+        except:
+            db.session.rollback()
+
+        # Efficient fetch of usernames
+        seen_users = db.session.query(User.username).join(MessageSeen).filter(MessageSeen.message_id == message_id).all()
+        seen_by_users = [u[0] for u in seen_users]
         
-        seen_by_users = [seen.user.username for seen in message.seen_by]
         emit('message_seen_by', {
             'message_id': message_id,
             'seen_by': seen_by_users
-        }, to=message.room_name)
+        }, to=db.session.query(Message.room_name).filter_by(id=message_id).scalar())

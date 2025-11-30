@@ -3,7 +3,6 @@ from flask_login import UserMixin
 from werkzeug.security import generate_password_hash, check_password_hash
 from datetime import datetime
 
-# --- Database Models ---
 user_rooms = db.Table('user_rooms',
     db.Column('user_id', db.Integer, db.ForeignKey('user.id'), primary_key=True),
     db.Column('room_name', db.String(100), db.ForeignKey('room.name'), primary_key=True)
@@ -34,6 +33,9 @@ class MessageSeen(db.Model):
     user = db.relationship('User', backref=db.backref('seen_messages', lazy=True))
     message = db.relationship('Message', backref=db.backref('seen_by', lazy='dynamic'))
 
+    # INDEX
+    __table_args__ = (db.Index('idx_message_seen', 'message_id', 'user_id'),)
+
 class Room(db.Model):
     name = db.Column(db.String(100), primary_key=True)
 
@@ -54,6 +56,9 @@ class Message(db.Model):
     room = db.relationship('Room', backref=db.backref('messages', lazy=True))
     replies = db.relationship('Message', backref=db.backref('parent', remote_side=[id]), lazy='dynamic')
 
+    # INDEX
+    __table_args__ = (db.Index('idx_message_room_time', 'room_name', 'timestamp'),)
+
 class Reaction(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     message_id = db.Column(db.Integer, db.ForeignKey('message.id'), nullable=False)
@@ -63,4 +68,7 @@ class Reaction(db.Model):
     user = db.relationship('User', backref=db.backref('reactions', lazy=True))
     message = db.relationship('Message', backref=db.backref('reactions', lazy='dynamic', cascade="all, delete-orphan"))
 
-    __table_args__ = (db.UniqueConstraint('message_id', 'user_id', 'emoji', name='_message_user_emoji_uc'),)
+    __table_args__ = (
+        db.UniqueConstraint('message_id', 'user_id', 'emoji', name='_message_user_emoji_uc'),
+        db.Index('idx_reaction_message', 'message_id'),
+    )
