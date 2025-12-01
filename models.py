@@ -31,9 +31,10 @@ class MessageSeen(db.Model):
     seen_at = db.Column(db.DateTime, default=datetime.utcnow)
 
     user = db.relationship('User', backref=db.backref('seen_messages', lazy=True))
-    message = db.relationship('Message', backref=db.backref('seen_by', lazy='dynamic'))
+    
+    # FIX 1: Removed lazy='dynamic', changed to lazy=True
+    message = db.relationship('Message', backref=db.backref('seen_by', lazy=True))
 
-    # INDEX
     __table_args__ = (db.Index('idx_message_seen', 'message_id', 'user_id'),)
 
 class Room(db.Model):
@@ -54,9 +55,12 @@ class Message(db.Model):
 
     user = db.relationship('User', backref=db.backref('messages', lazy=True))
     room = db.relationship('Room', backref=db.backref('messages', lazy=True))
+    
+    # We can keep dynamic here if you want to filter replies later, 
+    # but for consistency with the others, strict loading is often safer.
+    # Leaving this as dynamic is okay because we don't eager load 'replies' in events.py.
     replies = db.relationship('Message', backref=db.backref('parent', remote_side=[id]), lazy='dynamic')
 
-    # INDEX
     __table_args__ = (db.Index('idx_message_room_time', 'room_name', 'timestamp'),)
 
 class Reaction(db.Model):
@@ -66,7 +70,9 @@ class Reaction(db.Model):
     emoji = db.Column(db.String(10), nullable=False)
 
     user = db.relationship('User', backref=db.backref('reactions', lazy=True))
-    message = db.relationship('Message', backref=db.backref('reactions', lazy='dynamic', cascade="all, delete-orphan"))
+    
+    # FIX 2: Removed lazy='dynamic', changed to lazy=True
+    message = db.relationship('Message', backref=db.backref('reactions', lazy=True, cascade="all, delete-orphan"))
 
     __table_args__ = (
         db.UniqueConstraint('message_id', 'user_id', 'emoji', name='_message_user_emoji_uc'),
