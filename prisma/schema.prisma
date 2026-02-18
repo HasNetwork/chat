@@ -1,0 +1,94 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model User {
+  id           Int           @id @default(autoincrement())
+  username     String        @unique
+  passwordHash String        @map("password_hash")
+  isAdmin      Boolean       @default(false) @map("is_admin")
+  lastSeen     DateTime?     @map("last_seen")
+  online       Boolean       @default(false)
+
+  messages     Message[]
+  reactions    Reaction[]
+  seenMessages MessageSeen[]
+  rooms        UserRoom[]
+
+  @@map("users")
+}
+
+model Room {
+  name     String     @id
+  messages Message[]
+  users    UserRoom[]
+
+  @@map("rooms")
+}
+
+model UserRoom {
+  userId   Int    @map("user_id")
+  roomName String @map("room_name")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  room Room @relation(fields: [roomName], references: [name], onDelete: Cascade)
+
+  @@id([userId, roomName])
+  @@map("user_rooms")
+}
+
+model Message {
+  id        Int       @id @default(autoincrement())
+  roomName  String    @map("room_name")
+  userId    Int       @map("user_id")
+  username  String
+  content   String
+  timestamp DateTime  @default(now())
+  isFile    Boolean   @default(false) @map("is_file")
+  filename  String?
+  parentId  Int?      @map("parent_id")
+  isDeleted Boolean   @default(false) @map("is_deleted")
+  editedAt  DateTime? @map("edited_at")
+
+  user      User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  room      Room          @relation(fields: [roomName], references: [name], onDelete: Cascade)
+  parent    Message?      @relation("Replies", fields: [parentId], references: [id], onDelete: SetNull)
+  replies   Message[]     @relation("Replies")
+  reactions Reaction[]
+  seenBy    MessageSeen[]
+
+  @@index([roomName, timestamp])
+  @@map("messages")
+}
+
+model Reaction {
+  id        Int    @id @default(autoincrement())
+  messageId Int    @map("message_id")
+  userId    Int    @map("user_id")
+  emoji     String
+
+  message Message @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([messageId, userId, emoji])
+  @@index([messageId])
+  @@map("reactions")
+}
+
+model MessageSeen {
+  id        Int      @id @default(autoincrement())
+  userId    Int      @map("user_id")
+  messageId Int      @map("message_id")
+  seenAt    DateTime @default(now()) @map("seen_at")
+
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  message Message @relation(fields: [messageId], references: [id], onDelete: Cascade)
+
+  @@index([messageId, userId])
+  @@map("message_seen")
+}
