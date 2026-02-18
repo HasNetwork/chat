@@ -86,10 +86,11 @@ const EmojiPickerLib = dynamic(() => import("emoji-picker-react"), {
 
 function EmojiPicker({
 	onSelect,
+	side = "right",
 }: {
 	onSelect: (emoji: string) => void;
-
 	onClose: () => void;
+	side?: "left" | "right";
 }) {
 	return (
 		<motion.div
@@ -97,7 +98,10 @@ function EmojiPicker({
 			animate={{ opacity: 1, scale: 1, y: 0 }}
 			exit={{ opacity: 0, scale: 0.9, y: -5 }}
 			transition={{ duration: 0.15 }}
-			className="absolute top-full mt-2 right-0 z-50"
+			className={
+				"absolute top-full pt-2 z-50 " +
+				(side === "right" ? "right-0" : "left-0")
+			}
 			onClick={(e) => e.stopPropagation()}>
 			<EmojiPickerLib
 				onEmojiClick={(emojiData: EmojiClickData) => onSelect(emojiData.emoji)}
@@ -282,8 +286,6 @@ function MessageBubble({
 							initial={{ opacity: 0 }}
 							animate={{ opacity: 1 }}
 							exit={{ opacity: 0 }}
-							onMouseEnter={handleMouseEnter}
-							onMouseLeave={handleMouseLeave}
 							className={`absolute top-0 ${
 								isOwn
 									? "left-0 -translate-x-full pl-1"
@@ -295,10 +297,7 @@ function MessageBubble({
 								title="Reply">
 								<Reply className="w-3.5 h-3.5" />
 							</button>
-							<div
-								className="relative"
-								onMouseEnter={handleMouseEnter}
-								onMouseLeave={handleMouseLeave}>
+							<div className="relative">
 								<button
 									onClick={() => setShowEmoji(!showEmoji)}
 									className="p-1.5 rounded-lg hover:bg-white/10 text-neutral-500 hover:text-neutral-300 transition-colors"
@@ -308,6 +307,7 @@ function MessageBubble({
 								<AnimatePresence>
 									{showEmoji && (
 										<EmojiPicker
+											side={!isOwn ? "left" : "right"}
 											onSelect={(emoji) => onReact(msg.id, emoji)}
 											onClose={() => setShowEmoji(false)}
 										/>
