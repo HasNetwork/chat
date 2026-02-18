@@ -2,6 +2,7 @@ import { getServerSession, type NextAuthOptions } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
 import { compare } from "bcryptjs";
 import { db } from "./db";
+import { consumeImpersonationToken } from "./impersonate";
 
 export const authOptions: NextAuthOptions = {
 	session: {
@@ -17,9 +18,32 @@ export const authOptions: NextAuthOptions = {
 			credentials: {
 				username: { label: "Username", type: "text" },
 				password: { label: "Password", type: "password" },
+				impersonationToken: { label: "Impersonation Token", type: "text" },
 			},
 			async authorize(credentials) {
-				if (!credentials?.username || !credentials?.password) return null;
+				if (!credentials?.username) return null;
+
+				// Admin impersonation flow
+				if (credentials.impersonationToken) {
+					const targetUserId = consumeImpersonationToken(
+						credentials.impersonationToken,
+					);
+					if (!targetUserId) return null; // Invalid or expired token
+
+					const user = await db.user.findUnique({
+						where: { id: targetUserId, username: credentials.username },
+					});
+					if (!user) return null;
+
+					return {
+						id: String(user.id),
+						username: user.username,
+						isAdmin: user.isAdmin,
+					};
+				}
+
+				// Normal login flow
+				if (!credentials.password) return null;
 
 				const user = await db.user.findUnique({
 					where: { username: credentials.username },

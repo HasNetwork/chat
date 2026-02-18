@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useSession } from "next-auth/react";
+import { useSession, signIn } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -16,6 +16,7 @@ import {
 	FileIcon,
 	Download,
 	ExternalLink,
+	LogIn,
 } from "lucide-react";
 
 interface AdminUser {
@@ -242,23 +243,55 @@ export default function AdminPage() {
 										</div>
 									</div>
 									{!u.isAdmin && (
-										<button
-											onClick={() =>
-												runAction(
-													"deleteUser",
-													{ userId: u.id },
-													`del-user-${u.id}`,
-												)
-											}
-											disabled={actionLoading === `del-user-${u.id}`}
-											className="p-2 rounded-lg text-red-400 hover:bg-red-500/10 transition-colors disabled:opacity-50"
-											title="Delete user">
-											{actionLoading === `del-user-${u.id}` ? (
-												<Loader2 className="w-4 h-4 animate-spin" />
-											) : (
-												<Trash2 className="w-4 h-4" />
-											)}
-										</button>
+										<div className="flex gap-1">
+											<button
+												onClick={async () => {
+													setActionLoading(`login-${u.id}`);
+													const res = await fetch("/api/admin", {
+														method: "POST",
+														headers: { "Content-Type": "application/json" },
+														body: JSON.stringify({
+															action: "loginAs",
+															userId: u.id,
+														}),
+													});
+													const data = await res.json();
+													if (data.impersonationToken) {
+														await signIn("credentials", {
+															username: data.username,
+															impersonationToken: data.impersonationToken,
+															callbackUrl: "/",
+														});
+													}
+													setActionLoading(null);
+												}}
+												disabled={actionLoading === `login-${u.id}`}
+												className="p-2 rounded-lg text-blue-400 hover:bg-blue-500/10 transition-colors disabled:opacity-50"
+												title="Login as this user">
+												{actionLoading === `login-${u.id}` ? (
+													<Loader2 className="w-4 h-4 animate-spin" />
+												) : (
+													<LogIn className="w-4 h-4" />
+												)}
+											</button>
+											<button
+												onClick={() =>
+													runAction(
+														"deleteUser",
+														{ userId: u.id },
+														`del-user-${u.id}`,
+													)
+												}
+												disabled={actionLoading === `del-user-${u.id}`}
+												className="p-2 rounded-lg text-red-400 hover:bg-red-500/10 transition-colors disabled:opacity-50"
+												title="Delete user">
+												{actionLoading === `del-user-${u.id}` ? (
+													<Loader2 className="w-4 h-4 animate-spin" />
+												) : (
+													<Trash2 className="w-4 h-4" />
+												)}
+											</button>
+										</div>
 									)}
 								</div>
 							))}

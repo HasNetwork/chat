@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSession } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { createImpersonationToken } from "@/lib/impersonate";
 
 async function checkAdmin() {
 	const session = await getSession();
@@ -140,7 +141,6 @@ export async function POST(req: NextRequest) {
 			}
 
 			case "loginAs": {
-				// Return user data for client-side signIn
 				const user = await db.user.findUnique({ where: { id: userId } });
 				if (!user) {
 					return NextResponse.json(
@@ -148,9 +148,10 @@ export async function POST(req: NextRequest) {
 						{ status: 404 },
 					);
 				}
+				const token = createImpersonationToken(user.id);
 				return NextResponse.json({
 					username: user.username,
-					message: "Use these credentials to sign in as this user.",
+					impersonationToken: token,
 				});
 			}
 
