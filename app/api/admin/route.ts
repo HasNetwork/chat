@@ -61,6 +61,32 @@ export async function GET(req: NextRequest) {
 			});
 		}
 
+		if (resource === "files") {
+			const files = await db.message.findMany({
+				where: { isFile: true, isDeleted: false },
+				orderBy: { timestamp: "desc" },
+				select: {
+					id: true,
+					content: true,
+					filename: true,
+					timestamp: true,
+					roomName: true,
+					username: true,
+				},
+			});
+
+			return NextResponse.json({
+				files: files.map((f) => ({
+					id: f.id,
+					url: f.content,
+					filename: f.filename,
+					room: f.roomName,
+					uploadedBy: f.username,
+					uploadedAt: f.timestamp.toISOString(),
+				})),
+			});
+		}
+
 		return NextResponse.json({ error: "Invalid resource" }, { status: 400 });
 	} catch (error) {
 		console.error("Admin GET error:", error);
@@ -78,7 +104,7 @@ export async function POST(req: NextRequest) {
 			return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 		}
 
-		const { action, roomName, userId } = await req.json();
+		const { action, roomName, userId, fileId } = await req.json();
 
 		switch (action) {
 			case "clearRoom": {
@@ -103,6 +129,16 @@ export async function POST(req: NextRequest) {
 				});
 			}
 
+			case "deleteUser": {
+				// Cascade: reactions, seen, messages, room memberships, then user
+				await db.reaction.deleteMany({ where: { userId } });
+				await db.messageSeen.deleteMany({ where: { userId } });
+				await db.message.deleteMany({ where: { userId } });
+				await db.userRoom.deleteMany({ where: { userId } });
+				await db.user.delete({ where: { id: userId } });
+				return NextResponse.json({ message: "User deleted." });
+			}
+
 			case "loginAs": {
 				// Return user data for client-side signIn
 				const user = await db.user.findUnique({ where: { id: userId } });
@@ -116,6 +152,14 @@ export async function POST(req: NextRequest) {
 					username: user.username,
 					message: "Use these credentials to sign in as this user.",
 				});
+			}
+
+			case "deleteFile": {
+				await db.message.update({
+					where: { id: fileId },
+					data: { isDeleted: true },
+				});
+				return NextResponse.json({ message: "File deleted." });
 			}
 
 			default:

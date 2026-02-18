@@ -106,12 +106,10 @@ export async function POST(req: NextRequest) {
 			seen_by: [],
 		};
 
-		// Broadcast via Pusher
-		await pusherServer.trigger(
-			roomChannel(room),
-			PUSHER_EVENTS.NEW_MESSAGE,
-			messageData,
-		);
+		// Broadcast via Pusher (fire-and-forget for speed)
+		pusherServer
+			.trigger(roomChannel(room), PUSHER_EVENTS.NEW_MESSAGE, messageData)
+			.catch((err) => console.error("Pusher trigger error:", err));
 
 		return NextResponse.json(messageData, { status: 201 });
 	} catch (error) {

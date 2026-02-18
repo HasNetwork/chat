@@ -43,11 +43,13 @@ export async function PATCH(
 			edited_at: updated.editedAt!.toISOString(),
 		};
 
-		await pusherServer.trigger(
-			roomChannel(message.roomName),
-			PUSHER_EVENTS.MESSAGE_EDITED,
-			eventData,
-		);
+		pusherServer
+			.trigger(
+				roomChannel(message.roomName),
+				PUSHER_EVENTS.MESSAGE_EDITED,
+				eventData,
+			)
+			.catch((err) => console.error("Pusher trigger error:", err));
 
 		return NextResponse.json(eventData);
 	} catch (error) {
@@ -87,11 +89,13 @@ export async function DELETE(
 
 		const eventData = { message_id: messageId };
 
-		await pusherServer.trigger(
-			roomChannel(message.roomName),
-			PUSHER_EVENTS.MESSAGE_DELETED,
-			eventData,
-		);
+		pusherServer
+			.trigger(
+				roomChannel(message.roomName),
+				PUSHER_EVENTS.MESSAGE_DELETED,
+				eventData,
+			)
+			.catch((err) => console.error("Pusher trigger error:", err));
 
 		return NextResponse.json(eventData);
 	} catch (error) {

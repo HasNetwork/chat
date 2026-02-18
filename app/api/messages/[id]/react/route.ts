@@ -38,16 +38,17 @@ export async function POST(
 			});
 		}
 
-		// Fetch updated reactions
-		const reactions = await db.reaction.findMany({
-			where: { messageId },
-			include: { user: { select: { username: true } } },
-		});
-
-		const message = await db.message.findUnique({
-			where: { id: messageId },
-			select: { roomName: true },
-		});
+		// Fetch updated reactions + message room in parallel
+		const [reactions, message] = await Promise.all([
+			db.reaction.findMany({
+				where: { messageId },
+				include: { user: { select: { username: true } } },
+			}),
+			db.message.findUnique({
+				where: { id: messageId },
+				select: { roomName: true },
+			}),
+		]);
 
 		const eventData = {
 			message_id: messageId,
@@ -58,11 +59,13 @@ export async function POST(
 		};
 
 		if (message) {
-			await pusherServer.trigger(
-				roomChannel(message.roomName),
-				PUSHER_EVENTS.MESSAGE_REACTED,
-				eventData,
-			);
+			pusherServer
+				.trigger(
+					roomChannel(message.roomName),
+					PUSHER_EVENTS.MESSAGE_REACTED,
+					eventData,
+				)
+				.catch((err) => console.error("Pusher trigger error:", err));
 		}
 
 		return NextResponse.json(eventData);

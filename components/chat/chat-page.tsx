@@ -24,6 +24,7 @@ import {
 	Shield,
 	File as FileIcon,
 	Download,
+	Users,
 } from "lucide-react";
 
 // ─── Types ───
@@ -42,12 +43,13 @@ interface MessageData {
 	seen_by: string[];
 }
 
-// ─── IST Helpers ───
-function toIST(isoString: string) {
-	const d = new Date(isoString);
-	return d.toLocaleString("en-IN", { timeZone: "Asia/Kolkata" });
+interface RoomMember {
+	id: number;
+	username: string;
+	online: boolean;
 }
 
+// ─── IST Helpers ───
 function toISTTime(isoString: string) {
 	const d = new Date(isoString);
 	return d.toLocaleTimeString("en-IN", {
@@ -68,8 +70,293 @@ function toISTDate(isoString: string) {
 	});
 }
 
-// ─── Emoji Picker ───
-const QUICK_EMOJIS = ["👍", "❤️", "😂", "😮", "😢", "🔥", "🎉", "👏"];
+// ─── Enhanced Emoji Picker ───
+const EMOJI_CATEGORIES: { name: string; icon: string; emojis: string[] }[] = [
+	{
+		name: "Smileys",
+		icon: "😊",
+		emojis: [
+			"😀",
+			"😃",
+			"😄",
+			"😁",
+			"😆",
+			"😅",
+			"🤣",
+			"😂",
+			"🙂",
+			"😊",
+			"😇",
+			"🥰",
+			"😍",
+			"🤩",
+			"😘",
+			"😋",
+			"😛",
+			"😜",
+			"🤪",
+			"😝",
+			"🤑",
+			"🤗",
+			"🤭",
+			"🤫",
+			"🤔",
+			"🫡",
+			"🤐",
+			"🤨",
+			"😐",
+			"😑",
+			"😶",
+			"🫥",
+			"😏",
+			"😒",
+			"🙄",
+			"😬",
+			"😮‍💨",
+			"🤥",
+			"😌",
+			"😔",
+			"😪",
+			"🤤",
+			"😴",
+			"😷",
+			"🤒",
+			"🤕",
+			"🤢",
+			"🤮",
+			"🥵",
+			"🥶",
+			"🥴",
+			"😵",
+			"🤯",
+			"🤠",
+			"🥳",
+			"🥸",
+			"😎",
+			"🤓",
+			"🧐",
+			"😕",
+			"🫤",
+			"😟",
+			"🙁",
+			"😮",
+			"😯",
+			"😲",
+			"😳",
+			"🥺",
+			"🥹",
+			"😦",
+			"😧",
+			"😨",
+			"😰",
+			"😥",
+			"😢",
+			"😭",
+			"😱",
+			"😖",
+			"😣",
+			"😞",
+			"😓",
+			"😩",
+			"😫",
+			"🥱",
+			"😤",
+			"😡",
+			"😠",
+			"🤬",
+			"😈",
+			"👿",
+			"💀",
+			"☠️",
+			"💩",
+			"🤡",
+			"👹",
+			"👺",
+		],
+	},
+	{
+		name: "Gestures",
+		icon: "👍",
+		emojis: [
+			"👋",
+			"🤚",
+			"🖐️",
+			"✋",
+			"🖖",
+			"🫱",
+			"🫲",
+			"🫳",
+			"🫴",
+			"👌",
+			"🤌",
+			"🤏",
+			"✌️",
+			"🤞",
+			"🫰",
+			"🤟",
+			"🤘",
+			"🤙",
+			"👈",
+			"👉",
+			"👆",
+			"🖕",
+			"👇",
+			"☝️",
+			"🫵",
+			"👍",
+			"👎",
+			"✊",
+			"👊",
+			"🤛",
+			"🤜",
+			"👏",
+			"🙌",
+			"🫶",
+			"👐",
+			"🤲",
+			"🤝",
+			"🙏",
+			"💪",
+			"🦾",
+		],
+	},
+	{
+		name: "Hearts",
+		icon: "❤️",
+		emojis: [
+			"❤️",
+			"🧡",
+			"💛",
+			"💚",
+			"💙",
+			"💜",
+			"🖤",
+			"🤍",
+			"🤎",
+			"💔",
+			"❤️‍🔥",
+			"❤️‍🩹",
+			"❣️",
+			"💕",
+			"💞",
+			"💓",
+			"💗",
+			"💖",
+			"💘",
+			"💝",
+			"💟",
+			"♥️",
+			"💋",
+			"🫂",
+		],
+	},
+	{
+		name: "Celebrations",
+		icon: "🎉",
+		emojis: [
+			"🎉",
+			"🎊",
+			"🎈",
+			"🎆",
+			"🎇",
+			"✨",
+			"🎀",
+			"🎁",
+			"🏆",
+			"🏅",
+			"🥇",
+			"🥈",
+			"🥉",
+			"⭐",
+			"🌟",
+			"💫",
+			"🔥",
+			"💥",
+			"💯",
+			"🎯",
+			"🚀",
+			"💎",
+			"👑",
+			"🏁",
+		],
+	},
+	{
+		name: "Animals",
+		icon: "🐱",
+		emojis: [
+			"🐶",
+			"🐱",
+			"🐭",
+			"🐹",
+			"🐰",
+			"🦊",
+			"🐻",
+			"🐼",
+			"🐨",
+			"🐯",
+			"🦁",
+			"🐮",
+			"🐷",
+			"🐸",
+			"🐵",
+			"🙈",
+			"🙉",
+			"🙊",
+			"🐒",
+			"🐔",
+			"🐧",
+			"🐦",
+			"🐤",
+			"🦄",
+			"🐝",
+			"🐛",
+			"🦋",
+			"🐌",
+			"🐞",
+			"🐜",
+			"🪲",
+			"🐢",
+		],
+	},
+	{
+		name: "Food",
+		icon: "🍕",
+		emojis: [
+			"🍎",
+			"🍐",
+			"🍊",
+			"🍋",
+			"🍌",
+			"🍉",
+			"🍇",
+			"🍓",
+			"🫐",
+			"🍈",
+			"🍒",
+			"🍑",
+			"🥭",
+			"🍍",
+			"🥥",
+			"🥝",
+			"🍕",
+			"🍔",
+			"🍟",
+			"🌭",
+			"🍿",
+			"🧁",
+			"🍩",
+			"🍪",
+			"🎂",
+			"🍰",
+			"🍫",
+			"🍬",
+			"🍭",
+			"☕",
+			"🍵",
+			"🧋",
+		],
+	},
+];
 
 function EmojiPicker({
 	onSelect,
@@ -78,23 +365,50 @@ function EmojiPicker({
 	onSelect: (emoji: string) => void;
 	onClose: () => void;
 }) {
+	const [activeTab, setActiveTab] = useState(0);
+	const pickerRef = useRef<HTMLDivElement>(null);
+
 	return (
 		<motion.div
-			initial={{ opacity: 0, scale: 0.9 }}
-			animate={{ opacity: 1, scale: 1 }}
-			exit={{ opacity: 0, scale: 0.9 }}
-			className="absolute bottom-full mb-1 right-0 flex gap-1 p-2 rounded-xl glass z-50">
-			{QUICK_EMOJIS.map((e) => (
-				<button
-					key={e}
-					onClick={() => {
-						onSelect(e);
-						onClose();
-					}}
-					className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-white/10 transition-colors text-base">
-					{e}
-				</button>
-			))}
+			ref={pickerRef}
+			initial={{ opacity: 0, scale: 0.9, y: 5 }}
+			animate={{ opacity: 1, scale: 1, y: 0 }}
+			exit={{ opacity: 0, scale: 0.9, y: 5 }}
+			transition={{ duration: 0.15 }}
+			className="absolute bottom-full mb-2 right-0 w-[280px] rounded-2xl glass border border-neutral-700/50 shadow-2xl shadow-black/40 z-50 overflow-hidden">
+			{/* Category tabs */}
+			<div className="flex border-b border-neutral-800/60 px-1 pt-1">
+				{EMOJI_CATEGORIES.map((cat, i) => (
+					<button
+						key={cat.name}
+						onClick={() => setActiveTab(i)}
+						className={`flex-1 p-1.5 rounded-t-lg text-sm transition-all ${
+							activeTab === i
+								? "bg-white/10 border-b-2 border-primary"
+								: "hover:bg-white/5 text-neutral-500"
+						}`}
+						title={cat.name}>
+						{cat.icon}
+					</button>
+				))}
+			</div>
+
+			{/* Emoji grid */}
+			<div className="p-2 h-[180px] overflow-y-auto">
+				<div className="grid grid-cols-8 gap-0.5">
+					{EMOJI_CATEGORIES[activeTab].emojis.map((e) => (
+						<button
+							key={e}
+							onClick={() => {
+								onSelect(e);
+								onClose();
+							}}
+							className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-white/10 active:scale-90 transition-all text-base">
+							{e}
+						</button>
+					))}
+				</div>
+			</div>
 		</motion.div>
 	);
 }
@@ -121,6 +435,30 @@ function MessageBubble({
 }) {
 	const [showEmoji, setShowEmoji] = useState(false);
 	const [showActions, setShowActions] = useState(false);
+	const hideTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+	// Clear timer on unmount
+	useEffect(() => {
+		return () => {
+			if (hideTimerRef.current) clearTimeout(hideTimerRef.current);
+		};
+	}, []);
+
+	const handleMouseEnter = () => {
+		if (hideTimerRef.current) {
+			clearTimeout(hideTimerRef.current);
+			hideTimerRef.current = null;
+		}
+		setShowActions(true);
+	};
+
+	const handleMouseLeave = () => {
+		// Delay hiding so the user can move to the emoji picker
+		hideTimerRef.current = setTimeout(() => {
+			setShowActions(false);
+			setShowEmoji(false);
+		}, 400);
+	};
 
 	if (msg.is_deleted) {
 		return (
@@ -147,11 +485,8 @@ function MessageBubble({
 	return (
 		<div
 			className={`flex ${isOwn ? "justify-end" : "justify-start"} group mb-1`}
-			onMouseEnter={() => setShowActions(true)}
-			onMouseLeave={() => {
-				setShowActions(false);
-				setShowEmoji(false);
-			}}>
+			onMouseEnter={handleMouseEnter}
+			onMouseLeave={handleMouseLeave}>
 			<div className="relative max-w-md">
 				{/* Reply reference */}
 				{parentMsg && (
@@ -248,6 +583,8 @@ function MessageBubble({
 							initial={{ opacity: 0 }}
 							animate={{ opacity: 1 }}
 							exit={{ opacity: 0 }}
+							onMouseEnter={handleMouseEnter}
+							onMouseLeave={handleMouseLeave}
 							className={`absolute top-0 ${
 								isOwn
 									? "left-0 -translate-x-full pl-1"
@@ -259,7 +596,10 @@ function MessageBubble({
 								title="Reply">
 								<Reply className="w-3.5 h-3.5" />
 							</button>
-							<div className="relative">
+							<div
+								className="relative"
+								onMouseEnter={handleMouseEnter}
+								onMouseLeave={handleMouseLeave}>
 								<button
 									onClick={() => setShowEmoji(!showEmoji)}
 									className="p-1.5 rounded-lg hover:bg-white/10 text-neutral-500 hover:text-neutral-300 transition-colors"
@@ -317,6 +657,8 @@ export default function ChatPage() {
 	const [replyTo, setReplyTo] = useState<MessageData | null>(null);
 	const [loading, setLoading] = useState(false);
 	const [uploading, setUploading] = useState(false);
+	const [roomMembers, setRoomMembers] = useState<RoomMember[]>([]);
+	const [showMembers, setShowMembers] = useState(false);
 
 	const messagesEndRef = useRef<HTMLDivElement>(null);
 	const fileInputRef = useRef<HTMLInputElement>(null);
@@ -364,6 +706,28 @@ export default function ChatPage() {
 		};
 
 		loadMessages();
+	}, [currentRoom]);
+
+	// ─── Load room members ───
+	useEffect(() => {
+		if (!currentRoom) {
+			setRoomMembers([]);
+			return;
+		}
+
+		const loadMembers = async () => {
+			const res = await fetch(
+				`/api/rooms/members?room=${encodeURIComponent(currentRoom)}`,
+			);
+			const data = await res.json();
+			setRoomMembers(data.members || []);
+		};
+
+		loadMembers();
+
+		// Refresh members every 30 seconds to keep online status current
+		const interval = setInterval(loadMembers, 30000);
+		return () => clearInterval(interval);
 	}, [currentRoom]);
 
 	// ─── Pusher subscription ───
@@ -534,6 +898,8 @@ export default function ChatPage() {
 		return prev !== curr ? curr : null;
 	};
 
+	const onlineCount = roomMembers.filter((m) => m.online).length;
+
 	return (
 		<div className="h-screen flex overflow-hidden bg-background">
 			{/* ─── Sidebar ─── */}
@@ -659,17 +1025,78 @@ export default function ChatPage() {
 						</button>
 					)}
 					{currentRoom ? (
-						<div className="flex items-center gap-2">
-							<Hash className="w-5 h-5 text-primary" />
-							<h1 className="font-semibold text-white">{currentRoom}</h1>
+						<div className="flex items-center gap-2 flex-1 min-w-0">
+							<Hash className="w-5 h-5 text-primary flex-shrink-0" />
+							<h1 className="font-semibold text-white truncate">
+								{currentRoom}
+							</h1>
 						</div>
 					) : (
 						<h1 className="text-neutral-500">Select a room</h1>
 					)}
+
+					{/* Online members indicator */}
+					{currentRoom && roomMembers.length > 0 && (
+						<div className="relative ml-auto">
+							<button
+								onClick={() => setShowMembers(!showMembers)}
+								className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg hover:bg-white/5 transition-colors text-neutral-400 hover:text-white">
+								<Users className="w-4 h-4" />
+								<span className="text-xs font-medium">
+									<span className="text-green-400">{onlineCount}</span>
+									<span className="text-neutral-600">
+										/{roomMembers.length}
+									</span>
+								</span>
+							</button>
+
+							{/* Members dropdown */}
+							<AnimatePresence>
+								{showMembers && (
+									<motion.div
+										initial={{ opacity: 0, y: -5, scale: 0.95 }}
+										animate={{ opacity: 1, y: 0, scale: 1 }}
+										exit={{ opacity: 0, y: -5, scale: 0.95 }}
+										transition={{ duration: 0.12 }}
+										className="absolute top-full right-0 mt-1 w-56 rounded-xl glass border border-neutral-700/50 shadow-2xl shadow-black/40 z-50 py-2 max-h-64 overflow-y-auto">
+										<p className="px-3 pb-1.5 text-[10px] font-semibold text-neutral-500 uppercase tracking-wider">
+											Members — {onlineCount} online
+										</p>
+										{roomMembers
+											.sort((a, b) => (b.online ? 1 : 0) - (a.online ? 1 : 0))
+											.map((m) => (
+												<div
+													key={m.id}
+													className="flex items-center gap-2.5 px-3 py-1.5 hover:bg-white/5 transition-colors">
+													<div
+														className={`w-2 h-2 rounded-full flex-shrink-0 ${
+															m.online ? "bg-green-500" : "bg-neutral-600"
+														}`}
+													/>
+													<span
+														className={`text-sm truncate ${
+															m.online ? "text-white" : "text-neutral-500"
+														}`}>
+														{m.username}
+														{m.username === username && (
+															<span className="text-xs text-neutral-600 ml-1">
+																(you)
+															</span>
+														)}
+													</span>
+												</div>
+											))}
+									</motion.div>
+								)}
+							</AnimatePresence>
+						</div>
+					)}
 				</header>
 
 				{/* Messages Area */}
-				<div className="flex-1 overflow-y-auto p-4 space-y-2">
+				<div
+					className="flex-1 overflow-y-auto p-4 space-y-2"
+					onClick={() => setShowMembers(false)}>
 					{!currentRoom ? (
 						<div className="h-full flex items-center justify-center">
 							<div className="text-center">

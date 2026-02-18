@@ -27,16 +27,17 @@ export async function POST(
 			});
 		}
 
-		// Get all seen usernames
-		const seenRecords = await db.messageSeen.findMany({
-			where: { messageId },
-			include: { user: { select: { username: true } } },
-		});
-
-		const message = await db.message.findUnique({
-			where: { id: messageId },
-			select: { roomName: true },
-		});
+		// Get all seen usernames + message room in parallel
+		const [seenRecords, message] = await Promise.all([
+			db.messageSeen.findMany({
+				where: { messageId },
+				include: { user: { select: { username: true } } },
+			}),
+			db.message.findUnique({
+				where: { id: messageId },
+				select: { roomName: true },
+			}),
+		]);
 
 		const eventData = {
 			message_id: messageId,
@@ -44,11 +45,13 @@ export async function POST(
 		};
 
 		if (message) {
-			await pusherServer.trigger(
-				roomChannel(message.roomName),
-				PUSHER_EVENTS.MESSAGE_SEEN,
-				eventData,
-			);
+			pusherServer
+				.trigger(
+					roomChannel(message.roomName),
+					PUSHER_EVENTS.MESSAGE_SEEN,
+					eventData,
+				)
+				.catch((err) => console.error("Pusher trigger error:", err));
 		}
 
 		return NextResponse.json(eventData);

@@ -13,6 +13,9 @@ import {
 	Loader2,
 	MessageSquare,
 	RefreshCw,
+	FileIcon,
+	Download,
+	ExternalLink,
 } from "lucide-react";
 
 interface AdminUser {
@@ -29,26 +32,41 @@ interface AdminRoom {
 	messageCount: number;
 }
 
+interface AdminFile {
+	id: number;
+	url: string;
+	filename: string | null;
+	room: string;
+	uploadedBy: string;
+	uploadedAt: string;
+}
+
+type TabType = "users" | "rooms" | "files";
+
 export default function AdminPage() {
 	const { data: session, status } = useSession();
 	const router = useRouter();
 	const [users, setUsers] = useState<AdminUser[]>([]);
 	const [rooms, setRooms] = useState<AdminRoom[]>([]);
+	const [files, setFiles] = useState<AdminFile[]>([]);
 	const [loading, setLoading] = useState(true);
-	const [tab, setTab] = useState<"users" | "rooms">("users");
+	const [tab, setTab] = useState<TabType>("users");
 	const [actionLoading, setActionLoading] = useState<string | null>(null);
 
 	const fetchData = async () => {
 		setLoading(true);
 		try {
-			const [usersRes, roomsRes] = await Promise.all([
+			const [usersRes, roomsRes, filesRes] = await Promise.all([
 				fetch("/api/admin?resource=users"),
 				fetch("/api/admin?resource=rooms"),
+				fetch("/api/admin?resource=files"),
 			]);
 			const usersData = await usersRes.json();
 			const roomsData = await roomsRes.json();
+			const filesData = await filesRes.json();
 			setUsers(usersData.users || []);
 			setRooms(roomsData.rooms || []);
+			setFiles(filesData.files || []);
 		} catch (err) {
 			console.error("Admin fetch error:", err);
 		}
@@ -80,6 +98,29 @@ export default function AdminPage() {
 		setActionLoading(null);
 	};
 
+	const formatDate = (iso: string) => {
+		return new Date(iso).toLocaleString("en-IN", {
+			timeZone: "Asia/Kolkata",
+			day: "numeric",
+			month: "short",
+			year: "numeric",
+			hour: "2-digit",
+			minute: "2-digit",
+		});
+	};
+
+	const formatFileSize = (filename: string | null) => {
+		// We don't have file size from blob, just show the extension
+		if (!filename) return "Unknown";
+		const ext = filename.split(".").pop()?.toUpperCase();
+		return ext || "FILE";
+	};
+
+	const isImageFile = (filename: string | null) => {
+		if (!filename) return false;
+		return /\.(jpg|jpeg|png|gif|webp|svg|bmp|ico)$/i.test(filename);
+	};
+
 	if (status === "loading" || loading) {
 		return (
 			<div className="min-h-screen flex items-center justify-center">
@@ -87,6 +128,32 @@ export default function AdminPage() {
 			</div>
 		);
 	}
+
+	const tabConfig: {
+		key: TabType;
+		label: string;
+		icon: React.ReactNode;
+		count: number;
+	}[] = [
+		{
+			key: "users",
+			label: "Users",
+			icon: <Users className="w-4 h-4" />,
+			count: users.length,
+		},
+		{
+			key: "rooms",
+			label: "Rooms",
+			icon: <Hash className="w-4 h-4" />,
+			count: rooms.length,
+		},
+		{
+			key: "files",
+			label: "Files",
+			icon: <FileIcon className="w-4 h-4" />,
+			count: files.length,
+		},
+	];
 
 	return (
 		<div className="min-h-screen p-4 md:p-8 bg-background">
@@ -104,7 +171,9 @@ export default function AdminPage() {
 						</div>
 						<div>
 							<h1 className="text-xl font-bold text-white">Admin Panel</h1>
-							<p className="text-sm text-neutral-500">Manage users and rooms</p>
+							<p className="text-sm text-neutral-500">
+								Manage users, rooms & files
+							</p>
 						</div>
 					</div>
 					<button
@@ -117,23 +186,19 @@ export default function AdminPage() {
 
 				{/* Tabs */}
 				<div className="flex gap-2 mb-6">
-					{(["users", "rooms"] as const).map((t) => (
+					{tabConfig.map((t) => (
 						<button
-							key={t}
-							onClick={() => setTab(t)}
+							key={t.key}
+							onClick={() => setTab(t.key)}
 							className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all ${
-								tab === t
+								tab === t.key
 									? "bg-primary/10 text-primary border border-primary/20"
 									: "text-neutral-400 hover:text-white hover:bg-white/5"
 							}`}>
-							{t === "users" ? (
-								<Users className="w-4 h-4" />
-							) : (
-								<Hash className="w-4 h-4" />
-							)}
-							{t.charAt(0).toUpperCase() + t.slice(1)}
+							{t.icon}
+							{t.label}
 							<span className="px-1.5 py-0.5 rounded-md bg-neutral-800 text-neutral-400 text-xs">
-								{t === "users" ? users.length : rooms.length}
+								{t.count}
 							</span>
 						</button>
 					))}
@@ -141,7 +206,7 @@ export default function AdminPage() {
 
 				{/* Content */}
 				<AnimatePresence mode="wait">
-					{tab === "users" ? (
+					{tab === "users" && (
 						<motion.div
 							key="users"
 							initial={{ opacity: 0, y: 10 }}
@@ -176,10 +241,36 @@ export default function AdminPage() {
 											</p>
 										</div>
 									</div>
+									{!u.isAdmin && (
+										<button
+											onClick={() =>
+												runAction(
+													"deleteUser",
+													{ userId: u.id },
+													`del-user-${u.id}`,
+												)
+											}
+											disabled={actionLoading === `del-user-${u.id}`}
+											className="p-2 rounded-lg text-red-400 hover:bg-red-500/10 transition-colors disabled:opacity-50"
+											title="Delete user">
+											{actionLoading === `del-user-${u.id}` ? (
+												<Loader2 className="w-4 h-4 animate-spin" />
+											) : (
+												<Trash2 className="w-4 h-4" />
+											)}
+										</button>
+									)}
 								</div>
 							))}
+							{users.length === 0 && (
+								<p className="text-center text-neutral-500 py-8 text-sm">
+									No users yet
+								</p>
+							)}
 						</motion.div>
-					) : (
+					)}
+
+					{tab === "rooms" && (
 						<motion.div
 							key="rooms"
 							initial={{ opacity: 0, y: 10 }}
@@ -244,6 +335,100 @@ export default function AdminPage() {
 									</div>
 								</div>
 							))}
+							{rooms.length === 0 && (
+								<p className="text-center text-neutral-500 py-8 text-sm">
+									No rooms yet
+								</p>
+							)}
+						</motion.div>
+					)}
+
+					{tab === "files" && (
+						<motion.div
+							key="files"
+							initial={{ opacity: 0, y: 10 }}
+							animate={{ opacity: 1, y: 0 }}
+							exit={{ opacity: 0, y: -10 }}
+							className="space-y-2">
+							{files.map((f) => (
+								<div key={f.id} className="glass rounded-xl p-4">
+									<div className="flex flex-col md:flex-row md:items-center gap-3">
+										<div className="flex items-center gap-3 flex-1 min-w-0">
+											{/* Thumbnail or icon */}
+											{isImageFile(f.filename) ? (
+												<div className="w-10 h-10 rounded-lg overflow-hidden flex-shrink-0 border border-white/10">
+													<img
+														src={f.url}
+														alt={f.filename || "image"}
+														className="w-full h-full object-cover"
+													/>
+												</div>
+											) : (
+												<div className="w-10 h-10 rounded-lg bg-primary/10 border border-primary/20 flex items-center justify-center flex-shrink-0">
+													<FileIcon className="w-4 h-4 text-primary" />
+												</div>
+											)}
+
+											<div className="min-w-0 flex-1">
+												<p className="font-medium text-white text-sm truncate">
+													{f.filename || "Unnamed file"}
+												</p>
+												<div className="flex items-center gap-3 text-xs text-neutral-500 mt-0.5 flex-wrap">
+													<span className="px-1.5 py-0.5 rounded bg-neutral-800 text-neutral-400 text-[10px] font-medium uppercase">
+														{formatFileSize(f.filename)}
+													</span>
+													<span>by {f.uploadedBy}</span>
+													<span className="flex items-center gap-1">
+														<Hash className="w-3 h-3" />
+														{f.room}
+													</span>
+													<span>{formatDate(f.uploadedAt)}</span>
+												</div>
+											</div>
+										</div>
+
+										<div className="flex gap-2 flex-shrink-0">
+											<a
+												href={f.url}
+												target="_blank"
+												rel="noopener noreferrer"
+												className="p-2 rounded-lg text-neutral-400 hover:text-white hover:bg-white/10 transition-colors"
+												title="Open">
+												<ExternalLink className="w-4 h-4" />
+											</a>
+											<a
+												href={f.url}
+												download={f.filename || "file"}
+												className="p-2 rounded-lg text-neutral-400 hover:text-white hover:bg-white/10 transition-colors"
+												title="Download">
+												<Download className="w-4 h-4" />
+											</a>
+											<button
+												onClick={() =>
+													runAction(
+														"deleteFile",
+														{ fileId: f.id },
+														`del-file-${f.id}`,
+													)
+												}
+												disabled={actionLoading === `del-file-${f.id}`}
+												className="p-2 rounded-lg text-red-400 hover:bg-red-500/10 transition-colors disabled:opacity-50"
+												title="Delete">
+												{actionLoading === `del-file-${f.id}` ? (
+													<Loader2 className="w-4 h-4 animate-spin" />
+												) : (
+													<Trash2 className="w-4 h-4" />
+												)}
+											</button>
+										</div>
+									</div>
+								</div>
+							))}
+							{files.length === 0 && (
+								<p className="text-center text-neutral-500 py-8 text-sm">
+									No files uploaded yet
+								</p>
+							)}
 						</motion.div>
 					)}
 				</AnimatePresence>
