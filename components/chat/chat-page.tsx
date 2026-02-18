@@ -5,6 +5,8 @@ import { useSession, signOut } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { usePusher } from "@/components/providers/pusher-provider";
 import { motion, AnimatePresence } from "framer-motion";
+import dynamic from "next/dynamic";
+import { Theme as EmojiTheme, type EmojiClickData } from "emoji-picker-react";
 import {
 	MessageSquare,
 	Plus,
@@ -70,345 +72,42 @@ function toISTDate(isoString: string) {
 	});
 }
 
-// ─── Enhanced Emoji Picker ───
-const EMOJI_CATEGORIES: { name: string; icon: string; emojis: string[] }[] = [
-	{
-		name: "Smileys",
-		icon: "😊",
-		emojis: [
-			"😀",
-			"😃",
-			"😄",
-			"😁",
-			"😆",
-			"😅",
-			"🤣",
-			"😂",
-			"🙂",
-			"😊",
-			"😇",
-			"🥰",
-			"😍",
-			"🤩",
-			"😘",
-			"😋",
-			"😛",
-			"😜",
-			"🤪",
-			"😝",
-			"🤑",
-			"🤗",
-			"🤭",
-			"🤫",
-			"🤔",
-			"🫡",
-			"🤐",
-			"🤨",
-			"😐",
-			"😑",
-			"😶",
-			"🫥",
-			"😏",
-			"😒",
-			"🙄",
-			"😬",
-			"😮‍💨",
-			"🤥",
-			"😌",
-			"😔",
-			"😪",
-			"🤤",
-			"😴",
-			"😷",
-			"🤒",
-			"🤕",
-			"🤢",
-			"🤮",
-			"🥵",
-			"🥶",
-			"🥴",
-			"😵",
-			"🤯",
-			"🤠",
-			"🥳",
-			"🥸",
-			"😎",
-			"🤓",
-			"🧐",
-			"😕",
-			"🫤",
-			"😟",
-			"🙁",
-			"😮",
-			"😯",
-			"😲",
-			"😳",
-			"🥺",
-			"🥹",
-			"😦",
-			"😧",
-			"😨",
-			"😰",
-			"😥",
-			"😢",
-			"😭",
-			"😱",
-			"😖",
-			"😣",
-			"😞",
-			"😓",
-			"😩",
-			"😫",
-			"🥱",
-			"😤",
-			"😡",
-			"😠",
-			"🤬",
-			"😈",
-			"👿",
-			"💀",
-			"☠️",
-			"💩",
-			"🤡",
-			"👹",
-			"👺",
-		],
-	},
-	{
-		name: "Gestures",
-		icon: "👍",
-		emojis: [
-			"👋",
-			"🤚",
-			"🖐️",
-			"✋",
-			"🖖",
-			"🫱",
-			"🫲",
-			"🫳",
-			"🫴",
-			"👌",
-			"🤌",
-			"🤏",
-			"✌️",
-			"🤞",
-			"🫰",
-			"🤟",
-			"🤘",
-			"🤙",
-			"👈",
-			"👉",
-			"👆",
-			"🖕",
-			"👇",
-			"☝️",
-			"🫵",
-			"👍",
-			"👎",
-			"✊",
-			"👊",
-			"🤛",
-			"🤜",
-			"👏",
-			"🙌",
-			"🫶",
-			"👐",
-			"🤲",
-			"🤝",
-			"🙏",
-			"💪",
-			"🦾",
-		],
-	},
-	{
-		name: "Hearts",
-		icon: "❤️",
-		emojis: [
-			"❤️",
-			"🧡",
-			"💛",
-			"💚",
-			"💙",
-			"💜",
-			"🖤",
-			"🤍",
-			"🤎",
-			"💔",
-			"❤️‍🔥",
-			"❤️‍🩹",
-			"❣️",
-			"💕",
-			"💞",
-			"💓",
-			"💗",
-			"💖",
-			"💘",
-			"💝",
-			"💟",
-			"♥️",
-			"💋",
-			"🫂",
-		],
-	},
-	{
-		name: "Celebrations",
-		icon: "🎉",
-		emojis: [
-			"🎉",
-			"🎊",
-			"🎈",
-			"🎆",
-			"🎇",
-			"✨",
-			"🎀",
-			"🎁",
-			"🏆",
-			"🏅",
-			"🥇",
-			"🥈",
-			"🥉",
-			"⭐",
-			"🌟",
-			"💫",
-			"🔥",
-			"💥",
-			"💯",
-			"🎯",
-			"🚀",
-			"💎",
-			"👑",
-			"🏁",
-		],
-	},
-	{
-		name: "Animals",
-		icon: "🐱",
-		emojis: [
-			"🐶",
-			"🐱",
-			"🐭",
-			"🐹",
-			"🐰",
-			"🦊",
-			"🐻",
-			"🐼",
-			"🐨",
-			"🐯",
-			"🦁",
-			"🐮",
-			"🐷",
-			"🐸",
-			"🐵",
-			"🙈",
-			"🙉",
-			"🙊",
-			"🐒",
-			"🐔",
-			"🐧",
-			"🐦",
-			"🐤",
-			"🦄",
-			"🐝",
-			"🐛",
-			"🦋",
-			"🐌",
-			"🐞",
-			"🐜",
-			"🪲",
-			"🐢",
-		],
-	},
-	{
-		name: "Food",
-		icon: "🍕",
-		emojis: [
-			"🍎",
-			"🍐",
-			"🍊",
-			"🍋",
-			"🍌",
-			"🍉",
-			"🍇",
-			"🍓",
-			"🫐",
-			"🍈",
-			"🍒",
-			"🍑",
-			"🥭",
-			"🍍",
-			"🥥",
-			"🥝",
-			"🍕",
-			"🍔",
-			"🍟",
-			"🌭",
-			"🍿",
-			"🧁",
-			"🍩",
-			"🍪",
-			"🎂",
-			"🍰",
-			"🍫",
-			"🍬",
-			"🍭",
-			"☕",
-			"🍵",
-			"🧋",
-		],
-	},
-];
+// --- Emoji Picker (library-based) ---
+
+const EmojiPickerLib = dynamic(() => import("emoji-picker-react"), {
+	ssr: false,
+
+	loading: () => (
+		<div className="w-[350px] h-[400px] flex items-center justify-center glass rounded-2xl">
+			<Loader2 className="w-6 h-6 animate-spin text-neutral-500" />
+		</div>
+	),
+});
 
 function EmojiPicker({
 	onSelect,
-	onClose,
 }: {
 	onSelect: (emoji: string) => void;
+
 	onClose: () => void;
 }) {
-	const [activeTab, setActiveTab] = useState(0);
-	const pickerRef = useRef<HTMLDivElement>(null);
-
 	return (
 		<motion.div
-			ref={pickerRef}
-			initial={{ opacity: 0, scale: 0.9, y: 5 }}
+			initial={{ opacity: 0, scale: 0.9, y: -5 }}
 			animate={{ opacity: 1, scale: 1, y: 0 }}
-			exit={{ opacity: 0, scale: 0.9, y: 5 }}
+			exit={{ opacity: 0, scale: 0.9, y: -5 }}
 			transition={{ duration: 0.15 }}
-			className="absolute bottom-full mb-2 right-0 w-[280px] rounded-2xl glass border border-neutral-700/50 shadow-2xl shadow-black/40 z-50 overflow-hidden">
-			{/* Category tabs */}
-			<div className="flex border-b border-neutral-800/60 px-1 pt-1">
-				{EMOJI_CATEGORIES.map((cat, i) => (
-					<button
-						key={cat.name}
-						onClick={() => setActiveTab(i)}
-						className={`flex-1 p-1.5 rounded-t-lg text-sm transition-all ${
-							activeTab === i
-								? "bg-white/10 border-b-2 border-primary"
-								: "hover:bg-white/5 text-neutral-500"
-						}`}
-						title={cat.name}>
-						{cat.icon}
-					</button>
-				))}
-			</div>
-
-			{/* Emoji grid */}
-			<div className="p-2 h-[180px] overflow-y-auto">
-				<div className="grid grid-cols-8 gap-0.5">
-					{EMOJI_CATEGORIES[activeTab].emojis.map((e) => (
-						<button
-							key={e}
-							onClick={() => {
-								onSelect(e);
-								onClose();
-							}}
-							className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-white/10 active:scale-90 transition-all text-base">
-							{e}
-						</button>
-					))}
-				</div>
-			</div>
+			className="absolute top-full mt-2 right-0 z-50"
+			onClick={(e) => e.stopPropagation()}>
+			<EmojiPickerLib
+				onEmojiClick={(emojiData: EmojiClickData) => onSelect(emojiData.emoji)}
+				theme={EmojiTheme.DARK}
+				width={350}
+				height={400}
+				searchPlaceholder="Search emojis..."
+				previewConfig={{ showPreview: false }}
+				lazyLoadEmojis
+			/>
 		</motion.div>
 	);
 }
@@ -457,7 +156,7 @@ function MessageBubble({
 		hideTimerRef.current = setTimeout(() => {
 			setShowActions(false);
 			setShowEmoji(false);
-		}, 400);
+		}, 1400);
 	};
 
 	if (msg.is_deleted) {
@@ -659,10 +358,12 @@ export default function ChatPage() {
 	const [uploading, setUploading] = useState(false);
 	const [roomMembers, setRoomMembers] = useState<RoomMember[]>([]);
 	const [showMembers, setShowMembers] = useState(false);
+	const [typingUsers, setTypingUsers] = useState<string[]>([]);
 
 	const messagesEndRef = useRef<HTMLDivElement>(null);
 	const fileInputRef = useRef<HTMLInputElement>(null);
 	const inputRef = useRef<HTMLInputElement>(null);
+	const typingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
 	const username = session?.user?.username ?? "";
 
@@ -794,10 +495,37 @@ export default function ChatPage() {
 			},
 		);
 
+		// Typing indicators via client events
+		channel.bind("client-typing", (data: { user: string }) => {
+			if (data.user === username) return;
+			setTypingUsers((prev) =>
+				prev.includes(data.user) ? prev : [...prev, data.user],
+			);
+			// Auto-clear after 3 seconds
+			setTimeout(() => {
+				setTypingUsers((prev) => prev.filter((u) => u !== data.user));
+			}, 3000);
+		});
+
+		channel.bind("client-stop-typing", (data: { user: string }) => {
+			setTypingUsers((prev) => prev.filter((u) => u !== data.user));
+		});
+
 		return () => {
 			unsubscribe(channelName);
 		};
-	}, [currentRoom, subscribe, unsubscribe]);
+	}, [currentRoom, subscribe, unsubscribe, username]);
+
+	// --- Heartbeat for online status ---
+	useEffect(() => {
+		if (status !== "authenticated") return;
+
+		const ping = () => fetch("/api/heartbeat", { method: "POST" });
+		ping();
+
+		const interval = setInterval(ping, 30000);
+		return () => clearInterval(interval);
+	}, [status]);
 
 	// ─── Handlers ───
 	const joinRoom = async (roomName: string) => {
@@ -1190,6 +918,23 @@ export default function ChatPage() {
 					)}
 				</AnimatePresence>
 
+				{/* Typing Indicator */}
+				<AnimatePresence>
+					{typingUsers.length > 0 && (
+						<motion.div
+							initial={{ height: 0, opacity: 0 }}
+							animate={{ height: "auto", opacity: 1 }}
+							exit={{ height: 0, opacity: 0 }}
+							className="px-4 py-1.5 border-t border-neutral-800/30">
+							<p className="text-xs text-neutral-400 italic">
+								{typingUsers.length === 1
+									? `${typingUsers[0]} is typing...`
+									: `${typingUsers.join(", ")} are typing...`}
+							</p>
+						</motion.div>
+					)}
+				</AnimatePresence>
+
 				{/* Input Area */}
 				{currentRoom && (
 					<form
@@ -1219,7 +964,28 @@ export default function ChatPage() {
 							<input
 								ref={inputRef}
 								value={input}
-								onChange={(e) => setInput(e.target.value)}
+								onChange={(e) => {
+									setInput(e.target.value);
+									// Trigger typing indicator
+									if (currentRoom) {
+										const sanitized = currentRoom.replace(
+											/[^a-zA-Z0-9_\-=@,.;]/g,
+											"_",
+										);
+										const channelName = `private-room-${sanitized}`;
+										const channel = subscribe(channelName);
+										if (channel) {
+											channel.trigger("client-typing", { user: username });
+										}
+										if (typingTimerRef.current)
+											clearTimeout(typingTimerRef.current);
+										typingTimerRef.current = setTimeout(() => {
+											const ch = subscribe(channelName);
+											if (ch)
+												ch.trigger("client-stop-typing", { user: username });
+										}, 2000);
+									}
+								}}
 								placeholder={
 									editingMsg
 										? "Edit your message..."
