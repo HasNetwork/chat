@@ -44,21 +44,21 @@ export async function POST(req: NextRequest) {
 		const roomName = name.trim();
 		const userId = parseInt(session.user.id);
 
-		// Create room if it doesn't exist
-		await db.room.upsert({
-			where: { name: roomName },
-			update: {},
-			create: { name: roomName },
-		});
-
-		// Add user to room if not already in it
-		await db.userRoom.upsert({
-			where: {
-				userId_roomName: { userId, roomName },
-			},
-			update: {},
-			create: { userId, roomName },
-		});
+		// Create room and add user in a transaction
+		await db.$transaction([
+			db.room.upsert({
+				where: { name: roomName },
+				update: {},
+				create: { name: roomName },
+			}),
+			db.userRoom.upsert({
+				where: {
+					userId_roomName: { userId, roomName },
+				},
+				update: {},
+				create: { userId, roomName },
+			}),
+		]);
 
 		return NextResponse.json({ room: roomName }, { status: 200 });
 	} catch (error) {

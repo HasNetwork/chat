@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSession } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { put } from "@vercel/blob";
-import { pusherServer, roomChannel, PUSHER_EVENTS } from "@/lib/pusher";
+import { triggerPusher, roomChannel, PUSHER_EVENTS } from "@/lib/pusher";
 
 export async function POST(req: NextRequest) {
 	try {
@@ -57,9 +57,7 @@ export async function POST(req: NextRequest) {
 			seen_by: [],
 		};
 
-		pusherServer
-			.trigger(roomChannel(room), PUSHER_EVENTS.NEW_MESSAGE, messageData)
-			.catch((err) => console.error("Pusher trigger error:", err));
+		triggerPusher(roomChannel(room), PUSHER_EVENTS.NEW_MESSAGE, messageData);
 
 		return NextResponse.json(messageData, { status: 201 });
 	} catch (error) {

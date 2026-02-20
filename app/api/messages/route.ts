@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSession } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { pusherServer, roomChannel, PUSHER_EVENTS } from "@/lib/pusher";
+import { triggerPusher, roomChannel, PUSHER_EVENTS } from "@/lib/pusher";
 
 export async function GET(req: NextRequest) {
 	try {
@@ -107,9 +107,7 @@ export async function POST(req: NextRequest) {
 		};
 
 		// Broadcast via Pusher (fire-and-forget for speed)
-		pusherServer
-			.trigger(roomChannel(room), PUSHER_EVENTS.NEW_MESSAGE, messageData)
-			.catch((err) => console.error("Pusher trigger error:", err));
+		triggerPusher(roomChannel(room), PUSHER_EVENTS.NEW_MESSAGE, messageData);
 
 		return NextResponse.json(messageData, { status: 201 });
 	} catch (error) {

@@ -34,3 +34,34 @@ export const PUSHER_EVENTS = {
 	TYPING: "client-typing",
 	USER_STATUS: "user-status",
 } as const;
+
+/**
+ * Safely triggers a Pusher event with exponential backoff retries.
+ * Fire-and-forget: it does not block the main execution thread.
+ */
+export function triggerPusher(
+	channel: string | string[],
+	event: string,
+	data: any,
+	retries = 3,
+	delayMs = 500,
+) {
+	const attempt = async (currentAttempt = 1) => {
+		try {
+			await pusherServer.trigger(channel, event, data);
+		} catch (error) {
+			console.error(`Pusher trigger error (attempt ${currentAttempt}):`, error);
+			if (currentAttempt < retries) {
+				setTimeout(() => attempt(currentAttempt + 1), delayMs * currentAttempt);
+			} else {
+				console.error(
+					`[DLQ] Pusher failed to deliver event ${event} to ${channel} after ${retries} attempts.`,
+				);
+			}
+		}
+	};
+
+	attempt().catch((err) =>
+		console.error("Unhandled error in triggerPusher:", err),
+	);
+}

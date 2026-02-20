@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSession } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { pusherServer, roomChannel, PUSHER_EVENTS } from "@/lib/pusher";
+import { triggerPusher, roomChannel, PUSHER_EVENTS } from "@/lib/pusher";
 
 export async function PATCH(
 	req: NextRequest,
@@ -43,13 +43,11 @@ export async function PATCH(
 			edited_at: updated.editedAt!.toISOString(),
 		};
 
-		pusherServer
-			.trigger(
-				roomChannel(message.roomName),
-				PUSHER_EVENTS.MESSAGE_EDITED,
-				eventData,
-			)
-			.catch((err) => console.error("Pusher trigger error:", err));
+		triggerPusher(
+			roomChannel(message.roomName),
+			PUSHER_EVENTS.MESSAGE_EDITED,
+			eventData,
+		);
 
 		return NextResponse.json(eventData);
 	} catch (error) {
@@ -89,13 +87,11 @@ export async function DELETE(
 
 		const eventData = { message_id: messageId };
 
-		pusherServer
-			.trigger(
-				roomChannel(message.roomName),
-				PUSHER_EVENTS.MESSAGE_DELETED,
-				eventData,
-			)
-			.catch((err) => console.error("Pusher trigger error:", err));
+		triggerPusher(
+			roomChannel(message.roomName),
+			PUSHER_EVENTS.MESSAGE_DELETED,
+			eventData,
+		);
 
 		return NextResponse.json(eventData);
 	} catch (error) {
